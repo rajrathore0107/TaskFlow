@@ -1,48 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getTasks, createTask, updateTask, deleteTask } from '../api';
 import './Board.css';
 
-const INITIAL_TASKS = [
-  { id: 1, title: 'Design the homepage', description: 'Create wireframes and mockups', column: 'todo' },
-  { id: 2, title: 'Set up database', description: 'Configure MongoDB connection', column: 'todo' },
-  { id: 3, title: 'Build login page', description: 'Email and password authentication', column: 'inprogress' },
-  { id: 4, title: 'Create REST API', description: 'Express routes for tasks', column: 'inprogress' },
-  { id: 5, title: 'Deploy to server', description: 'Push to production', column: 'done' },
-];
-
 const COLUMNS = [
-  { id: 'todo',       label: 'To Do',       color: '#6366f1' },
-  { id: 'inprogress', label: 'In Progress',  color: '#f59e0b' },
-  { id: 'done',       label: 'Done',         color: '#10b981' },
+  { id: 'todo',       label: 'To Do',      color: '#6366f1' },
+  { id: 'inprogress', label: 'In Progress', color: '#f59e0b' },
+  { id: 'done',       label: 'Done',        color: '#10b981' },
 ];
 
 function Board() {
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [tasks, setTasks]       = useState([]);
+  const [loading, setLoading]   = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', description: '', column: 'todo' });
+  const [newTask, setNewTask]   = useState({ title: '', description: '', column: 'todo' });
   const [draggedTask, setDraggedTask] = useState(null);
+  const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  async function fetchTasks() {
+    try {
+      const data = await getTasks();
+      if (Array.isArray(data)) {
+        setTasks(data);
+      } else {
+        handleLogout();
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function getTasksByColumn(columnId) {
     return tasks.filter(task => task.column === columnId);
   }
 
-  function handleAddTask(e) {
+  async function handleAddTask(e) {
     e.preventDefault();
     if (!newTask.title) return;
 
-    const task = {
-      id: Date.now(),
-      title: newTask.title,
-      description: newTask.description,
-      column: newTask.column,
-    };
-
-    setTasks([...tasks, task]);
-    setNewTask({ title: '', description: '', column: 'todo' });
-    setShowForm(false);
+    try {
+      const task = await createTask(
+        newTask.title,
+        newTask.description,
+        newTask.column
+      );
+      setTasks([...tasks, task]);
+      setNewTask({ title: '', description: '', column: 'todo' });
+      setShowForm(false);
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
   }
 
-  function handleDeleteTask(taskId) {
-    setTasks(tasks.filter(task => task.id !== taskId));
+  async function handleDeleteTask(taskId) {
+    try {
+      await deleteTask(taskId);
+      setTasks(tasks.filter(task => task._id !== taskId));
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
   }
 
   function handleDragStart(task) {
@@ -53,14 +77,41 @@ function Board() {
     e.preventDefault();
   }
 
-  function handleDrop(columnId) {
+  async function handleDrop(columnId) {
     if (!draggedTask) return;
-    setTasks(tasks.map(task =>
-      task.id === draggedTask.id
-        ? { ...task, column: columnId }
-        : task
-    ));
-    setDraggedTask(null);
+    try {
+      await updateTask(draggedTask._id, { column: columnId });
+      setTasks(tasks.map(task =>
+        task._id === draggedTask._id
+          ? { ...task, column: columnId }
+          : task
+      ));
+      setDraggedTask(null);
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  }
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#0f172a',
+        color: '#6366f1',
+        fontSize: '18px'
+      }}>
+        Loading your tasks...
+      </div>
+    );
   }
 
   return (
@@ -69,14 +120,25 @@ function Board() {
       <header className="board-header">
         <div className="board-header-left">
           <h1 className="board-logo">TaskFlow</h1>
-          <span className="board-subtitle">My Workspace</span>
+          <span className="board-subtitle">
+            {user.name}'s Workspace
+          </span>
         </div>
-        <button
-          className="add-task-btn"
-          onClick={() => setShowForm(true)}
-        >
-          + Add Task
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="add-task-btn"
+            onClick={() => setShowForm(true)}
+          >
+            + Add Task
+          </button>
+          <button
+            className="add-task-btn"
+            onClick={handleLogout}
+            style={{ background: '#334155' }}
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       {showForm && (
@@ -115,7 +177,11 @@ function Board() {
                 </select>
               </div>
               <div className="modal-buttons">
-                <button type="button" className="cancel-btn" onClick={() => setShowForm(false)}>
+                <button
+                  type="button"
+                  className="cancel-btn"
+                  onClick={() => setShowForm(false)}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="submit-btn">
@@ -151,7 +217,7 @@ function Board() {
             <div className="column-tasks">
               {getTasksByColumn(column.id).map(task => (
                 <div
-                  key={task.id}
+                  key={task._id}
                   className="task-card"
                   draggable
                   onDragStart={() => handleDragStart(task)}
@@ -160,7 +226,7 @@ function Board() {
                     <h3 className="task-title">{task.title}</h3>
                     <button
                       className="delete-btn"
-                      onClick={() => handleDeleteTask(task.id)}
+                      onClick={() => handleDeleteTask(task._id)}
                     >
                       ×
                     </button>
@@ -170,7 +236,10 @@ function Board() {
                   )}
                   <div
                     className="task-tag"
-                    style={{ background: column.color + '22', color: column.color }}
+                    style={{
+                      background: column.color + '22',
+                      color: column.color
+                    }}
                   >
                     {column.label}
                   </div>
