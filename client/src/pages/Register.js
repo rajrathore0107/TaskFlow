@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { registerUser } from '../api';
 import './Login.css';
-
 
 function Register() {
   const [name, setName] = useState('');
@@ -11,7 +11,7 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError('');
 
@@ -26,23 +26,34 @@ function Register() {
     }
 
     setLoading(true);
-    console.log('Registering:', name, email);
-    setTimeout(() => setLoading(false), 1500);
+
+    try {
+      const data = await registerUser(name, email, password);
+
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        navigate('/board');
+      } else {
+        setError(data.message || 'Registration failed');
+      }
+    } catch (err) {
+      setError('Something went wrong. Try again.');
+    }
+
+    setLoading(false);
   }
 
   return (
     <div className="auth-container">
       <div className="auth-card">
-
         <div className="auth-header">
           <h1 className="auth-logo">TaskFlow</h1>
           <p className="auth-subtitle">Create your account</p>
         </div>
 
         {error && (
-          <div className="error-message">
-            {error}
-          </div>
+          <div className="error-message">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="auth-form">
@@ -91,10 +102,9 @@ function Register() {
         <p className="auth-switch">
           Already have an account?{' '}
           <span className="auth-link" onClick={() => navigate('/login')}>
-  Sign In
-</span>
+            Sign In
+          </span>
         </p>
-
       </div>
     </div>
   );

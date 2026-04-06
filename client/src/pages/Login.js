@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import './Login.css';
 import { useNavigate } from 'react-router-dom';
+import { loginUser } from '../api';
+import './Login.css';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -9,7 +10,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError('');
 
@@ -24,8 +25,22 @@ function Login() {
     }
 
     setLoading(true);
-    console.log('Logging in with:', email);
-    setTimeout(() => setLoading(false), 1500);
+
+    try {
+      const data = await loginUser(email, password);
+
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        navigate('/board');
+      } else {
+        setError(data.message || 'Login failed');
+      }
+    } catch (err) {
+      setError('Something went wrong. Try again.');
+    }
+
+    setLoading(false);
   }
 
   return (
@@ -37,9 +52,7 @@ function Login() {
         </div>
 
         {error && (
-          <div className="error-message">
-            {error}
-          </div>
+          <div className="error-message">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="auth-form">
@@ -77,8 +90,8 @@ function Login() {
         <p className="auth-switch">
           Don't have an account?{' '}
           <span className="auth-link" onClick={() => navigate('/register')}>
-  Register
-</span>
+            Register
+          </span>
         </p>
       </div>
     </div>
