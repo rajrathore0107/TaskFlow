@@ -20,8 +20,9 @@ function Board() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+  fetchTasks();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   async function fetchTasks() {
     try {
