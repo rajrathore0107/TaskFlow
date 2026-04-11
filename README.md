@@ -3,7 +3,7 @@
 A full stack Kanban board application for managing tasks across workflows.
 
 ## Live Demo
-> Deployment coming soon
+[View Live App](https://taskflow-raj.netlify.app)
 
 ## Built With
 - **Frontend** — React, React Router, CSS3
