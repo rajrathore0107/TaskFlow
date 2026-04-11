@@ -8,23 +8,8 @@ const taskRoutes = require('./routes/tasks');
 
 const app = express();
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
-
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://taskflow-raj.netlify.app',
-    'https://cheerful-bavarois-1b0707.netlify.app',
-  ],
-  credentials: true,
+  origin: '*',
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
